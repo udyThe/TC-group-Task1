@@ -1,106 +1,106 @@
-import { Search, TrendingUp, Play, Eye } from 'lucide-react';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import { Search, TrendingUp, Eye } from 'lucide-react';
 import { TrendingTopicPill } from './TrendingTopicPill';
-import { VideoThumbnail } from './VideoThumbnail';
 import { CreatorCard } from './CreatorCard';
 import { CourseProgressCard } from './CourseProgressCard';
 import { BottomNav } from './BottomNav';
+import { useState, useMemo } from 'react';
+import { useApp } from '../context/AppContext';
+import { searchVideos, getTrendingVideos } from '../utils/feedAlgorithm';
+import { topics } from '../data/mockData';
 
 interface SearchScreenProps {
-  onNavigateBack: () => void;
-  onNavigateToUpload?: () => void;
-  onNavigateToLibrary?: () => void;
-  onNavigateToProfile?: () => void;
+  readonly onNavigateBack: () => void;
+  readonly onNavigateToUpload?: () => void;
+  readonly onNavigateToLibrary?: () => void;
+  readonly onNavigateToProfile?: () => void;
 }
 
 export function SearchScreen({ onNavigateBack, onNavigateToUpload, onNavigateToLibrary, onNavigateToProfile }: SearchScreenProps) {
-  const trendingTopics = [
-    { label: 'Python', color: 'from-blue-500 to-cyan-500', icon: '🐍' },
-    { label: 'AI', color: 'from-purple-500 to-pink-500', icon: '🤖' },
-    { label: 'Marketing', color: 'from-orange-500 to-red-500', icon: '📊' },
-    { label: 'Design', color: 'from-pink-500 to-rose-500', icon: '🎨' },
-    { label: 'Excel', color: 'from-green-500 to-emerald-500', icon: '📈' },
-    { label: 'Finance', color: 'from-yellow-500 to-orange-500', icon: '💰' },
-  ];
+  const { videos, microCourses, progress, followCreator, unfollowCreator, followedCreators } = useApp();
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const recommendedVideos = [
-    {
-      id: 1,
-      thumbnail: 'https://images.unsplash.com/photo-1759984782106-4b56d0aa05b8?w=400',
-      title: 'Master Python in 60 Seconds',
-      creator: 'CodeMaster',
-      views: '124K',
-      duration: '60s',
-    },
-    {
-      id: 2,
-      thumbnail: 'https://images.unsplash.com/photo-1675495277087-10598bf7bcd1?w=400',
-      title: 'React Hooks Explained Simply',
-      creator: 'WebDev Pro',
-      views: '89K',
-      duration: '45s',
-    },
-    {
-      id: 3,
-      thumbnail: 'https://images.unsplash.com/photo-1633250391894-397930e3f5f2?w=400',
-      title: 'CSS Grid Layout Tutorial',
-      creator: 'Design Guru',
-      views: '156K',
-      duration: '75s',
-    },
-  ];
+  // Trending topics with colors
+  const trendingTopics = useMemo(() => {
+    const colors = [
+      'from-blue-500 to-cyan-500',
+      'from-purple-500 to-pink-500',
+      'from-orange-500 to-red-500',
+      'from-pink-500 to-rose-500',
+      'from-green-500 to-emerald-500',
+      'from-yellow-500 to-orange-500',
+    ];
+    const icons = ['🐍', '🤖', '📊', '🎨', '📈', '💰'];
+    return topics.slice(0, 6).map((topic, index) => ({
+      label: topic,
+      color: colors[index % colors.length],
+      icon: icons[index % icons.length],
+    }));
+  }, []);
 
-  const topCreators = [
-    {
-      id: 1,
-      name: 'Dr. Sarah Kim',
-      username: '@learnwithsarah',
-      followers: '245K',
-      avatar: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=200',
-      isFollowing: false,
-    },
-    {
-      id: 2,
-      name: 'Prof. Mike Chen',
-      username: '@profmike',
-      followers: '189K',
-      avatar: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=200',
-      isFollowing: true,
-    },
-    {
-      id: 3,
-      name: 'Tech Teacher',
-      username: '@techteach',
-      followers: '312K',
-      avatar: 'https://images.unsplash.com/photo-1581065178047-8ee15951ede6?w=200',
-      isFollowing: false,
-    },
-  ];
+  // Search results
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return getTrendingVideos(videos, 10);
+    }
+    return searchVideos(videos, searchQuery);
+  }, [videos, searchQuery]);
 
-  const continueLearning = [
-    {
-      id: 1,
-      title: 'Python Basics in 10 Minutes',
-      thumbnail: 'https://images.unsplash.com/photo-1633250391894-397930e3f5f2?w=400',
-      progress: 60,
-      videosCompleted: 6,
-      totalVideos: 10,
-    },
-    {
-      id: 2,
-      title: 'JavaScript Fundamentals',
-      thumbnail: 'https://images.unsplash.com/photo-1675495277087-10598bf7bcd1?w=400',
-      progress: 30,
-      videosCompleted: 3,
-      totalVideos: 10,
-    },
-  ];
+  // Get unique creators from videos
+  const topCreators = useMemo(() => {
+    const creatorMap = new Map();
+    for (const video of videos) {
+      if (!creatorMap.has(video.creatorId)) {
+        creatorMap.set(video.creatorId, {
+          id: video.creatorId,
+          name: video.creator.name,
+          username: video.creator.username,
+          avatar: video.creator.avatar,
+          followers: `${(Math.random() * 300 + 50).toFixed(0)}K`,
+          isFollowing: followedCreators.includes(video.creatorId),
+        });
+      }
+    }
+    return Array.from(creatorMap.values()).slice(0, 5);
+  }, [videos, followedCreators]);
+
+  // Continue learning from progress
+  const continueLearning = useMemo(() => {
+    const inProgressCourses = microCourses.map(course => {
+      const watchedVideosInCourse = progress.watchedVideos.filter(w =>
+        course.videos.includes(w.videoId)
+      ).length;
+      const progressPercent = (watchedVideosInCourse / course.videos.length) * 100;
+
+      return {
+        id: course.id,
+        title: course.title,
+        thumbnail: course.thumbnail,
+        progress: Math.round(progressPercent),
+        videosCompleted: watchedVideosInCourse,
+        totalVideos: course.videos.length,
+      };
+    }).filter(c => c.progress > 0 && c.progress < 100);
+
+    return inProgressCourses.slice(0, 3);
+  }, [microCourses, progress]);
+
+  const handleTopicClick = (topic: string) => {
+    setSearchQuery(topic);
+  };
+
+  const handleCreatorToggle = (creatorId: string, isFollowing: boolean) => {
+    if (isFollowing) {
+      unfollowCreator(creatorId);
+    } else {
+      followCreator(creatorId);
+    }
+  };
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-gradient-to-br from-gray-900 to-black">
       {/* Header with Search */}
       <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-xl border-b border-white/10 px-4 py-4 space-y-4">
-        <h1 className="text-white">Discover</h1>
+        <h1 className="text-white text-2xl font-bold">Discover</h1>
         
         {/* Search Bar */}
         <div className="relative">
@@ -108,6 +108,8 @@ export function SearchScreen({ onNavigateBack, onNavigateToUpload, onNavigateToL
           <input
             type="text"
             placeholder="Search topics, creators, courses..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-gray-800/50 border border-white/10 rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500/50 transition-colors"
           />
         </div>
@@ -119,44 +121,77 @@ export function SearchScreen({ onNavigateBack, onNavigateToUpload, onNavigateToL
         <section>
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="text-purple-400" size={20} />
-            <h2 className="text-white">Trending Topics</h2>
+            <h2 className="text-white font-semibold">Trending Topics</h2>
           </div>
           <div className="flex flex-wrap gap-2">
             {trendingTopics.map((topic) => (
-              <TrendingTopicPill key={topic.label} {...topic} />
+              <button key={topic.label} onClick={() => handleTopicClick(topic.label)} className="bg-transparent border-none p-0">
+                <TrendingTopicPill {...topic} />
+              </button>
             ))}
           </div>
         </section>
 
-        {/* Recommended for You */}
+        {/* Search Results / Recommended */}
         <section>
-          <h2 className="text-white mb-4">Recommended for You</h2>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-            {recommendedVideos.map((video) => (
-              <VideoThumbnail key={video.id} {...video} />
+          <h2 className="text-white font-semibold mb-4">
+            {searchQuery ? 'Search Results' : 'Trending Now'}
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {searchResults.slice(0, 6).map((video) => (
+              <div key={video.id} className="bg-gray-800/30 rounded-xl overflow-hidden border border-white/5 hover:border-purple-500/50 transition-colors">
+                <div className="relative aspect-[9/16] max-h-64">
+                  <img 
+                    src={video.thumbnail} 
+                    alt={video.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-2 right-2 bg-black/70 rounded px-2 py-0.5 text-xs text-white">
+                    {video.duration}s
+                  </div>
+                </div>
+                <div className="p-3">
+                  <h3 className="text-white text-sm font-medium line-clamp-2 mb-1">
+                    {video.title}
+                  </h3>
+                  <p className="text-gray-400 text-xs">
+                    {video.creator.name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 text-gray-500 text-xs">
+                    <Eye size={12} />
+                    <span>{video.views >= 1000 ? `${(video.views / 1000).toFixed(0)}K` : video.views}</span>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </section>
 
         {/* Top Creators */}
-        <section>
-          <h2 className="text-white mb-4">Top Creators</h2>
-          <div className="space-y-3">
-            {topCreators.map((creator) => (
-              <CreatorCard key={creator.id} {...creator} />
-            ))}
-          </div>
-        </section>
+        {!searchQuery && (
+          <section>
+            <h2 className="text-white font-semibold mb-4">Top Creators</h2>
+            <div className="space-y-3">
+              {topCreators.map((creator) => (
+                <button key={creator.id} onClick={() => handleCreatorToggle(creator.id, creator.isFollowing)} className="w-full bg-transparent border-none p-0 text-left">
+                  <CreatorCard {...creator} />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Continue Learning */}
-        <section className="pb-4">
-          <h2 className="text-white mb-4">Continue Learning</h2>
-          <div className="space-y-3">
-            {continueLearning.map((course) => (
-              <CourseProgressCard key={course.id} {...course} />
-            ))}
-          </div>
-        </section>
+        {!searchQuery && continueLearning.length > 0 && (
+          <section className="pb-4">
+            <h2 className="text-white font-semibold mb-4">Continue Learning</h2>
+            <div className="space-y-3">
+              {continueLearning.map((course) => (
+                <CourseProgressCard key={course.id} {...course} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Bottom Navigation */}
